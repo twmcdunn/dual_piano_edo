@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dual Piano EDO Mapping</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #dfea66 0%, #69a24b 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff9900;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .tet-display {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ff9900;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .numbers-pool {
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .numbers-pool h3 {
+            margin-bottom: 15px;
+            color: #4a5568;
+        }
+
+        .numbers-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 15px;
+            border: 2px dashed #cbd5e0;
+            min-height: 60px;
+        }
+
+        .number-token {
+            background: linear-gradient(135deg, #dfea66, #69a24b);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            cursor: grab;
+            user-select: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .number-token:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .number-token:active {
+            cursor: grabbing;
+        }
+
+        .piano-section {
+            margin-bottom: 40px;
+        }
+
+        .piano-title {
+            text-align: center;
+            font-size: 1.5em;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 20px;
+        }
+
+        .piano {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin: 0 auto;
+            width: fit-content;
+            background: #2d3748;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .keys-container {
+            position: relative;
+            display: flex;
+        }
+
+        .key {
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            font-weight: bold;
+            user-select: none;
+        }
+
+        .white-key {
+            width: 50px;
+            height: 180px;
+            background: linear-gradient(to bottom, #ffffff, #f7fafc);
+            border: 2px solid #e2e8f0;
+            border-radius: 0 0 8px 8px;
+            color: #4a5568;
+            z-index: 1;
+            padding-bottom: 10px;
+        }
+
+        .black-key {
+            width: 32px;
+            height: 120px;
+            background: linear-gradient(to bottom, #2d3748, #1a202c);
+            border: 2px solid #4a5568;
+            border-radius: 0 0 6px 6px;
+            color: white;
+            z-index: 2;
+            position: absolute;
+            padding-bottom: 8px;
+        }
+
+        .key:hover {
+            transform: translateY(2px);
+        }
+
+        .key:active {
+            transform: translateY(4px);
+        }
+
+        .key.drop-zone {
+            background: rgba(102, 126, 234, 0.3) !important;
+            border-color: #dfea66 !important;
+        }
+
+        .key.unmapped {
+            background: rgba(239, 68, 68, 0.2) !important;
+            border-color: #ef4444 !important;
+        }
+
+        .key .number-display {
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Black key positions - positioned over white keys */
+        .black-key[data-index="1"] {
+            left: 37px;
+        }
+
+        /* C# - between C and D */
+        .black-key[data-index="3"] {
+            left: 87px;
+        }
+
+        /* D# - between D and E */
+        .black-key[data-index="6"] {
+            left: 187px;
+        }
+
+        /* F# - between F and G */
+        .black-key[data-index="8"] {
+            left: 237px;
+        }
+
+        /* G# - between G and A */
+        .black-key[data-index="10"] {
+            left: 287px;
+        }
+
+        /* A# - between A and B */
+
+        .dragging {
+            opacity: 0.5;
+            transform: rotate(5deg) scale(0.9);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .white-key {
+                width: 40px;
+                height: 150px;
+            }
+
+            .black-key {
+                width: 26px;
+                height: 100px;
+            }
+
+            .black-key[data-index="1"] {
+                left: 29px;
+            }
+
+            /* C# - between C and D */
+            .black-key[data-index="3"] {
+                left: 69px;
+            }
+
+            /* D# - between D and E */
+            .black-key[data-index="6"] {
+                left: 149px;
+            }
+
+            /* F# - between F and G */
+            .black-key[data-index="8"] {
+                left: 189px;
+            }
+
+            /* G# - between G and A */
+            .black-key[data-index="10"] {
+                left: 229px;
+            }
+
+            /* A# - between A and B */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="gui">
+        <h1>Dual Piano EDO Mapping</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="tetSlider">TET:</label>
+                <input type="range" id="tetSlider" min="5" max="24" value="12">
+                <span class="tet-display" id="tetDisplay">12</span>
+            </div>
+        </div>
+
+        <div class="numbers-pool">
+            <h3>Available Numbers</h3>
+            <div class="numbers-container" id="numbersContainer">
+                <!-- Numbers will be generated here -->
+            </div>
+        </div>
+
+        <div class="piano-section">
+            <div class="piano-title">Piano A</div>
+            <div class="piano" id="pianoA">
+                <div class="keys-container">
+                    <!-- White keys -->
+                    <div class="key white-key" data-note="C" data-index="0">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="D" data-index="2">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="E" data-index="4">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="F" data-index="5">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="G" data-index="7">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="A" data-index="9">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="B" data-index="11">
+                        <div class="number-display"></div>
+                    </div>
+
+                    <!-- Black keys -->
+                    <div class="key black-key" data-note="C#" data-index="1">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="D#" data-index="3">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="F#" data-index="6">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="G#" data-index="8">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="A#" data-index="10">
+                        <div class="number-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="piano-section">
+            <div class="piano-title">Piano B</div>
+            <div class="piano" id="pianoB">
+                <div class="keys-container">
+                    <!-- White keys -->
+                    <div class="key white-key" data-note="C" data-index="0">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="D" data-index="2">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="E" data-index="4">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="F" data-index="5">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="G" data-index="7">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="A" data-index="9">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key white-key" data-note="B" data-index="11">
+                        <div class="number-display"></div>
+                    </div>
+
+                    <!-- Black keys -->
+                    <div class="key black-key" data-note="C#" data-index="1">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="D#" data-index="3">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="F#" data-index="6">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="G#" data-index="8">
+                        <div class="number-display"></div>
+                    </div>
+                    <div class="key black-key" data-note="A#" data-index="10">
+                        <div class="number-display"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables that your backend can access
+        var pianoAMap = [];//new Array(12).fill(null);
+        var pianoBMap = [];//new Array(12).fill(null);
+        var TET = 12;
+
+        const tetSlider = document.getElementById('tetSlider');
+        const tetDisplay = document.getElementById('tetDisplay');
+        const numbersContainer = document.getElementById('numbersContainer');
+
+        // Update TET and regenerate numbers
+        function updateTET() {
+            TET = parseInt(tetSlider.value);
+            tetDisplay.textContent = TET;
+            generatePianoMaps();
+            generateNumbers();
+        }
+
+        function generatePianoMaps() {
+            pianoAMap = [];
+            pianoBMap = [];
+            rot = 1;
+            for (let i = 0; i < 12; i++) {
+                pianoAMap.push(Math.floor(TET * (i / 12.0)));
+                pianoBMap.push(Math.floor(TET * ((i + rot) / 12.0)) - Math.floor(TET * rot / 12.0));
+            }
+            updateKeyDisplays();
+
+            console.log("DONE LOADING PIANO MAPS");
+            console.log("A: " + pianoAMap);
+            console.log("B: " + pianoBMap);
+        }
+
+        // Generate number tokens
+        function generateNumbers() {
+            numbersContainer.innerHTML = '';
+
+            for (let i = 0; i < TET; i++) {
+                const numberToken = document.createElement('div');
+                numberToken.className = 'number-token';
+                numberToken.textContent = i;
+                numberToken.draggable = true;
+                numberToken.dataset.number = i;
+
+                numberToken.addEventListener('dragstart', handleDragStart);
+                numberToken.addEventListener('dragend', handleDragEnd);
+
+                numbersContainer.appendChild(numberToken);
+            }
+        }
+
+        // Check if all keys are mapped
+        function checkAllKeysMapped() {
+            let allMapped = true;
+
+            document.querySelectorAll('.key').forEach(key => {
+                const keyIndex = parseInt(key.dataset.index);
+                const piano = key.closest('.piano').id;
+                const isMapped = (piano === 'pianoA' && pianoAMap[keyIndex] !== null) ||
+                    (piano === 'pianoB' && pianoBMap[keyIndex] !== null);
+
+                if (isMapped) {
+                    key.classList.remove('unmapped');
+                } else {
+                    key.classList.add('unmapped');
+                    allMapped = false;
+                }
+            });
+
+            return allMapped;
+        }
+
+        // Drag and drop handlers
+        let draggedNumber = null;
+
+        function handleDragStart(e) {
+            draggedNumber = parseInt(e.target.dataset.number);
+            e.target.classList.add('dragging');
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            draggedNumber = null;
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.currentTarget.classList.add('drop-zone');
+        }
+
+        function handleDragLeave(e) {
+            e.currentTarget.classList.remove('drop-zone');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drop-zone');
+
+            if (draggedNumber !== null) {
+                const key = e.currentTarget;
+                const keyIndex = parseInt(key.dataset.index);
+                const piano = key.closest('.piano').id;
+
+                // Assign number to this key (allow multiple keys to have same number)
+                if (piano === 'pianoA') {
+                    pianoAMap[keyIndex] = draggedNumber;
+                } else {
+                    pianoBMap[keyIndex] = draggedNumber;
+                }
+
+                updateKeyDisplay(key, draggedNumber);
+                checkAllKeysMapped(); // Check if all keys are now mapped
+            }
+        }
+
+        // Handle key clicks to remove mappings
+        function handleKeyClick(e) {
+            const key = e.currentTarget;
+            const keyIndex = parseInt(key.dataset.index);
+            const piano = key.closest('.piano').id;
+
+            if (piano === 'pianoA' && pianoAMap[keyIndex] !== null) {
+                pianoAMap[keyIndex] = null;
+                updateKeyDisplay(key, null);
+                checkAllKeysMapped();
+            } else if (piano === 'pianoB' && pianoBMap[keyIndex] !== null) {
+                pianoBMap[keyIndex] = null;
+                updateKeyDisplay(key, null);
+                checkAllKeysMapped();
+            }
+        }
+
+        function updateKeyDisplay(key, number) {
+            const display = key.querySelector('.number-display');
+            display.textContent = number !== null ? number : '';
+        }
+
+        // Initialize event listeners
+        function initializeEventListeners() {
+            tetSlider.addEventListener('input', updateTET);
+
+            // Add drag and drop listeners to all keys
+            document.querySelectorAll('.key').forEach(key => {
+                key.addEventListener('dragover', handleDragOver);
+                key.addEventListener('dragleave', handleDragLeave);
+                key.addEventListener('drop', handleDrop);
+                key.addEventListener('click', handleKeyClick);
+            });
+        }
+
+        // Update all key displays
+        function updateKeyDisplays() {
+            document.querySelectorAll('#pianoA .key').forEach(key => {
+                const index = parseInt(key.dataset.index);
+                updateKeyDisplay(key, pianoAMap[index]);
+            });
+
+            document.querySelectorAll('#pianoB .key').forEach(key => {
+                const index = parseInt(key.dataset.index);
+                updateKeyDisplay(key, pianoBMap[index]);
+            });
+        }
+
+        // Initialize the interface
+        function initialize() {
+            // You can populate these arrays with initial values from your backend
+            // pianoAMap = [0,1,2,3,5,6,7,8,10,11,12,13]; // Example
+            // pianoBMap = [0,1,2,3,5,6,7,8,10,11,12,13]; // Example
+
+            updateTET();
+            initializeEventListeners();
+
+            updateKeyDisplays();
+
+            // Check initial mapping state
+            checkAllKeysMapped();
+        }
+
+        // Start the application
+        initialize();
+    </script>
+    <script src="./backend.js"></script>
+</body>
+
+</html>

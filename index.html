@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web MIDI API Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+
+        .note-on {
+            background: #c8e6c9;
+        }
+
+        .note-off {
+            background: #ffcdd2;
+        }
+
+        .sustain {
+            background: #fff3e0;
+        }
+
+        #messages {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: white;
+        }
+    </style>
+</head>
+
+<body>
+    
+    <h1>Web MIDI API Demo</h1>
+    <div id="status" class="status">Initializing MIDI...</div>
+    <div id="messages"></div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const messagesEl = document.getElementById('messages');
+
+        // Check if Web MIDI API is supported
+        if (!navigator.requestMIDIAccess) {
+            statusEl.textContent = 'Web MIDI API not supported in this browser';
+            statusEl.style.background = '#ffebee';
+            statusEl.style.borderColor = '#f44336';
+        } else {
+            initMIDI();
+        }
+
+        var AudioContext = window.AudioContext // Default
+            || window.webkitAudioContext // Safari and old versions of Chrome
+            || false;
+
+        var audioContext = new AudioContext();
+
+        var button = document.createElement("BUTTON");
+        button.innerText = "GET PERMISSIONS";
+        button.onclick = function () {
+            if (audioContext.state != "running") {
+                audioContext.resume();
+            }
+            queueSounds1();
+        };
+        document.body.appendChild(button);
+
+        var nodeMap = new Map();
+
+        var c0Freq = 440 * (2 ** (3 / 12)) * (2 ** -5);
+        var refFreqs = [2077, 2077, 2077, 2077, 2077];
+        var TET = 15;
+
+        var buffers = [];
+        async function queueSounds1() {
+            if (audioContext.state != "running") {
+                audioContext.resume();
+            }
+
+            try {
+                navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then((mediastream) => {
+                    mediastream.getAudioTracks().forEach((trk) => {
+                        //trk.enabled = false;
+                        //trk.stop();
+                        trk.applyConstraints({
+                            autoGainControl: false,
+                            noiseSuppression: false,
+                            echoCancellation: false
+                        });
+                    })
+                });
+            }
+            catch (e) {
+                //alert("NO Navigator");
+            }
+
+            function loadSound(target, n, last) {
+                var url = "https://delightofcomposition.org/etude_for_smart_phones/sounds/" + n + ".mp3";//could go back to mp3 w/ audacity batch process if needed
+                var req = new XMLHttpRequest();
+                req.responseType = "arraybuffer";
+                req.onload = function () {
+                    audioContext.decodeAudioData(req.response, function (buffer) {
+                        target.push(buffer);
+                        if (n < last) {
+                            loadSound(target, n + 1, last);
+                        }
+                    })
+                };
+                req.open("GET", url);
+                req.send();
+            }
+
+            loadSound(buffers, 1, 5);
+
+            try {
+                const wakeLock = await navigator.wakeLock.request("screen");
+            } catch (err) {
+                // the wake lock request fails - usually system related, such being low on battery
+                console.log(`${err.name}, ${err.message}`);
+            }
+
+        }
+
+
+        async function initMIDI() {
+            try {
+                const midiAccess = await navigator.requestMIDIAccess();
+                statusEl.textContent = 'MIDI access granted. Connect a MIDI device and play!';
+
+                // Listen to all MIDI inputs
+                for (const input of midiAccess.inputs.values()) {
+                    input.addEventListener('midimessage', handleMIDIMessage);
+                    console.log('Connected to:', input.name);
+                }
+
+                // Listen for new device connections
+                midiAccess.addEventListener('statechange', (e) => {
+                    if (e.port.type === 'input' && e.port.state === 'connected') {
+                        e.port.addEventListener('midimessage', handleMIDIMessage);
+                        addMessage(`Device connected: ${e.port.name}`, 'status');
+                    }
+                });
+
+            } catch (error) {
+                statusEl.textContent = 'Failed to get MIDI access: ' + error.message;
+                statusEl.style.background = '#ffebee';
+                statusEl.style.borderColor = '#f44336';
+            }
+        }
+
+        var pianoAMap = []
+        var pianoBMap = []
+
+        function generatePianoMaps() {
+            rot = 1;
+            for (let i = 0; i < 12; i++) {
+                pianoAMap.push(Math.floor(TET * (i / 12.0)));
+                pianoBMap.push(Math.floor(TET * ((i + rot) / 12.0)) - Math.floor(TET * rot / 12.0));
+            }
+
+            console.log("DONE LOADING PIANO MAPS");
+            console.log("A: " + pianoAMap);
+            console.log("B: " + pianoBMap);
+        }
+
+        generatePianoMaps();
+
+        function convertNote(note) {
+            if (note >= 60) {
+                note -= 60;
+                let oct = Math.floor(note / 12.0);
+                let pc = note - 12 * oct;
+                return (12 * pianoAMap[pc] / TET) + 12 * oct + 60;
+            }
+            else {
+                note -= 24;
+                let oct = Math.floor(note / 12.0);
+                let pc = note - 12 * oct;
+                return (12 * pianoBMap[pc] / TET) + 12 * oct + 60;
+
+            }
+            return note;
+        }
+
+        var pedalState = false;
+        function handleMIDIMessage(event) {
+            var [status, note, velocity] = event.data;
+            const channel = (status & 0x0f) + 1;
+            const command = status & 0xf0;
+
+            switch (command) {
+                case 0x90: // Note On
+                    if (velocity > 0) {
+                        const source = audioContext.createBufferSource();
+                        source.buffer = buffers[0];
+                        const gainNode = audioContext.createGain();
+                        gainNode.gain.setValueAtTime(velocity / 128.0, audioContext.currentTime);
+                        source.connect(gainNode);
+                        gainNode.connect(audioContext.destination);
+
+                        origNote = note;
+                        note = convertNote(note);
+
+                        //source.playbackRate.value = (c0Freq * (2 ** (note.hs / 20.0))) / refFreqs[Number(note.sampleNum) - 1];
+                        var ratio = (c0Freq * (2 ** (4 + (note - 60) / 12.0))) / refFreqs[0];
+                        var cents = Math.log2(ratio) * 1200;
+                        //console.log("CENTS: " + cents);
+
+                        try {
+                            source.detune.value = cents;
+                        }
+                        catch (e) {
+                            source.playbackRate.value = ratio;
+                        }
+
+                        source.start();
+                        if (nodeMap.get(origNote)) {
+                            nodeMap.get(origNote).push({ source, gainNode })
+                        }
+                        else {
+                            nodeMap.set(origNote, [{ source, gainNode }]);
+                        }
+
+
+                        addMessage(`Note ON: ${getNoteName(note)} (${note}) velocity: ${velocity} channel: ${channel}`, 'note-on');
+                    } else {
+                        // Velocity 0 is effectively note off
+                        addMessage(`Note OFF: ${getNoteName(note)} (${note}) channel: ${channel}`, 'note-off');
+                        endNote(note);
+                    }
+                    break;
+
+                case 0x80: // Note Off
+                    addMessage(`Note OFF: ${getNoteName(note)} (${note}) velocity: ${velocity} channel: ${channel}`, 'note-off');
+                    endNote(note);
+                    break;
+
+                case 0xb0: // Control Change
+                    if (note === 64) { // Sustain pedal (CC 64)
+                        pedalState = velocity >= 64 ? true : false;
+                        if (!pedalState) {
+                            endQueuedNotes();
+                        }
+                        addMessage(`Sustain Pedal: ${pedalState} (value: ${velocity}) channel: ${channel}`, 'sustain');
+                    } else {
+                        addMessage(`Control Change: CC${note} value: ${velocity} channel: ${channel}`, 'sustain');
+                    }
+                    break;
+            }
+        }
+
+        function addMessage(text, className) {
+            const div = document.createElement('div');
+            div.className = `message ${className}`;
+            div.textContent = `${new Date().toLocaleTimeString()}: ${text}`;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+
+            // Keep only last 50 messages
+            while (messagesEl.children.length > 50) {
+                messagesEl.removeChild(messagesEl.firstChild);
+            }
+        }
+
+        function getNoteName(noteNumber) {
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const octave = Math.floor(noteNumber / 12) - 1;
+            const note = notes[noteNumber % 12];
+            return `${note}${octave}`;
+        }
+
+        queuedNotes = [];
+        function endNote(noteNumber) {
+            endFunc = function () {
+                nodesArr = nodeMap.get(noteNumber);
+                nodes = nodesArr.pop();
+                nodes.gainNode.gain.setValueAtTime(nodes.gainNode.gain.value, audioContext.currentTime);
+                nodes.gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+                nodes.source.stop(audioContext.currentTime + 0.1);
+            };
+            if (!pedalState) {
+                endFunc();
+            }
+            else {
+                queuedNotes.push(endFunc);
+            }
+        }
+
+        function endQueuedNotes() {
+            while (queuedNotes.length > 0) {
+                queuedNotes.pop()();
+            }
+        }
+    </script>
+</body>
+
+</html>
