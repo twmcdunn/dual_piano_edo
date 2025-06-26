@@ -9,7 +9,7 @@ var audioContext = new AudioContext();
 function startApp() {
     // Check if Web MIDI API is supported
     if (!navigator.requestMIDIAccess) {
-        alert('Web MIDI API not supported in this browser');
+        alert('Web MIDI API not supported by this browser. It works in pretty much every browser except Safari.');
     } else {
         initMIDI();
     }
@@ -34,23 +34,24 @@ async function queueSounds1() {
     if (audioContext.state != "running") {
         audioContext.resume();
     }
-
-    try {
-        navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then((mediastream) => {
-            mediastream.getAudioTracks().forEach((trk) => {
-                //trk.enabled = false;
-                //trk.stop();
-                trk.applyConstraints({
-                    autoGainControl: false,
-                    noiseSuppression: false,
-                    echoCancellation: false
-                });
-            })
-        });
-    }
-    catch (e) {
-        //alert("NO Navigator");
-    }
+    /*
+        try {
+            navigator.mediaDevices.getUserMedia({ video: false, audio: true }).then((mediastream) => {
+                mediastream.getAudioTracks().forEach((trk) => {
+                    //trk.enabled = false;
+                    //trk.stop();
+                    trk.applyConstraints({
+                        autoGainControl: false,
+                        noiseSuppression: false,
+                        echoCancellation: false
+                    });
+                })
+            });
+        }
+        catch (e) {
+            //alert("NO Navigator");
+        }
+            */
 
     function loadSound(target, n, last) {
         var url = "https://delightofcomposition.org/etude_for_smart_phones/sounds/" + n + ".mp3";//could go back to mp3 w/ audacity batch process if needed
