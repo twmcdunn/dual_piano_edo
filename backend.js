@@ -5,6 +5,7 @@ var AudioContext = window.AudioContext // Default
 
 var audioContext = new AudioContext();
 
+var usePianoSounds = true;
 
 function startApp() {
     // Check if Web MIDI API is supported
@@ -54,7 +55,9 @@ async function queueSounds1() {
             */
 
     function loadSound(target, n, last) {
-        var url = "https://delightofcomposition.org/etude_for_smart_phones/sounds/" + n + ".mp3";//could go back to mp3 w/ audacity batch process if needed
+        var url = (usePianoSounds ? "https://tonejssamples.github.io/piano/"
+            : "https://delightofcomposition.org/etude_for_smart_phones/sounds/")
+            + n + ".mp3";//could go back to mp3 w/ audacity batch process if needed
         var req = new XMLHttpRequest();
         req.responseType = "arraybuffer";
         req.onload = function () {
@@ -69,7 +72,18 @@ async function queueSounds1() {
         req.send();
     }
 
-    loadSound(buffers, 1, 5);
+    buffers = [];
+    if (!usePianoSounds) {
+        refFreqs = [2077, 2077, 2077, 2077, 2077];
+        loadSound(buffers, 1, 5);
+    }
+    else {
+        refFreqs = [];
+        for (let n = 21; n <= 108; n++) {
+            refFreqs.push(440 * (2 ** ((n - 69) / 12)));
+        }
+        loadSound(buffers, 21, 108);
+    }
 
     try {
         const wakeLock = await navigator.wakeLock.request("screen");
@@ -103,6 +117,25 @@ async function initMIDI() {
     }
 }
 
+const toggleSwitch = document.getElementById('toggleSwitch');
+const pianoLabel = document.getElementById('pianoLabel');
+const bellLabel = document.getElementById('bellLabel');
+let isActive = false;
+
+toggleSwitch.addEventListener('click', function () {
+    isActive = !isActive;
+    toggleSwitch.classList.toggle('active');
+    pianoLabel.classList.toggle('active');
+    bellLabel.classList.toggle('active');
+
+    usePianoSounds = !isActive;
+
+    queueSounds1();
+
+    // Log the current state (you can use this for your logic)
+    console.log(isActive ? 'Bell sounds selected' : 'Piano sounds selected');
+});
+
 function convertNote(note) {
     if (note >= 60) {
         note -= 60;
@@ -129,19 +162,24 @@ function handleMIDIMessage(event) {
     switch (command) {
         case 0x90: // Note On
             if (velocity > 0) {
+                origNote = note;
+                note = convertNote(note);
+
+                var idx = usePianoSounds ? (Math.round(note) - 21) : 0;
+                if (usePianoSounds) velocity *= 0.5;
+
+                var ratio = (c0Freq * (2 ** (4 + (note - 60) / 12.0))) / refFreqs[idx];
+                var cents = Math.log2(ratio) * 1200;
+
                 const source = audioContext.createBufferSource();
-                source.buffer = buffers[0];
+                source.buffer = buffers[idx];
                 const gainNode = audioContext.createGain();
                 gainNode.gain.setValueAtTime(velocity / 128.0, audioContext.currentTime);
                 source.connect(gainNode);
                 gainNode.connect(audioContext.destination);
 
-                origNote = note;
-                note = convertNote(note);
-
                 //source.playbackRate.value = (c0Freq * (2 ** (note.hs / 20.0))) / refFreqs[Number(note.sampleNum) - 1];
-                var ratio = (c0Freq * (2 ** (4 + (note - 60) / 12.0))) / refFreqs[0];
-                var cents = Math.log2(ratio) * 1200;
+
                 //console.log("CENTS: " + cents);
 
                 try {

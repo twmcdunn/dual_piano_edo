@@ -164,6 +164,7 @@
             font-style: italic;
         }
 
+
         /* Animation classes */
         .animate-drag {
             animation: dragAnimation 3s ease-in-out infinite;
@@ -259,6 +260,88 @@
         .particle:nth-child(4) {
             left: 90%;
             animation-delay: 3s;
+        }
+
+        .toggle-container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle-wrapper {
+            padding: 40px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .toggle-label {
+            font-size: 16px;
+            font-weight: 600;
+            color: #4a5568;
+            min-width: 120px;
+            transition: color 0.3s ease;
+        }
+
+        .toggle-label.active {
+            color: #667eea;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 70px;
+            height: 34px;
+            background: #e2e8f0;
+            border-radius: 34px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 28px;
+            height: 28px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(36px);
+        }
+
+        .toggle-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            transition: opacity 0.3s ease;
+        }
+
+        .toggle-icon.piano {
+            left: 8px;
+            opacity: 1;
+        }
+
+        .toggle-icon.bell {
+            right: 8px;
+            opacity: 0.3;
+        }
+
+        .toggle-switch.active .toggle-icon.piano {
+            opacity: 0.3;
+        }
+
+        .toggle-switch.active .toggle-icon.bell {
+            opacity: 1;
         }
 
         @keyframes float {
@@ -630,8 +713,21 @@
                 <label for="tetSlider">TET:</label>
                 <input type="range" id="tetSlider" min="5" max="24" value="12">
                 <span class="tet-display" id="tetDisplay">12</span>
+                <div class="toggle-wrapper">
+                    <span class="toggle-label active" id="pianoLabel">Use Piano Sounds 🎹</span>
+                    <div class="toggle-switch" id="toggleSwitch">
+                        <!-- <div class="toggle-icon piano"></div> -->
+                        <div class="toggle-slider"></div>
+                        <!-- <div class="toggle-icon bell"></div> -->
+                    </div>
+                    <span class="toggle-label" id="bellLabel">Use Bell Sounds 🔔</span>
+                </div>
             </div>
         </div>
+
+        <!-- <div class="toggle-container">
+            
+        </div> -->
 
         <div class="numbers-pool">
             <h3>Available Numbers</h3>
@@ -787,6 +883,8 @@
                 this.querySelector('.number-display').textContent = '7';
             }, 1000);
         });
+
+
 
     </script>
     <script src="./gui.js"></script>
